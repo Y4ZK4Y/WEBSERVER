@@ -1,0 +1,53 @@
+#include "Config/Logger.hpp"
+#include "WebServer/WebServer.hpp"
+#include <iostream>
+
+WebServer::WebServer(const std::vector<ServerConfig>& configs) : configs_ (configs)
+{
+	for (std::vector<ServerConfig>::iterator it = configs_.begin(); it != configs_.end(); ++it)
+	{
+	}
+}
+
+void WebServer::initSockets()
+{
+	for (std::vector<ServerConfig>::iterator it = configs_.begin(); it != configs_.end(); ++it)
+	{
+		int port = it->port;
+		ListeningSocket* existing = nullptr;
+
+		for (std::vector<ListeningSocket>::iterator sock = sockets_.begin(); sock != sockets_.end(); ++sock)
+		{
+			if (sock->getPort() == port)
+			{
+				existing = &*sock;
+				break;
+			}
+		}
+
+		if (existing)
+		{
+			existing->addConfig(&*it);
+		}
+		else
+		{
+			ListeningSocket newSock(port, "0.0.0.0");
+			newSock.addConfig(&*it);
+			sockets_.push_back(newSock);
+		}
+	}
+}
+
+void WebServer::initPollManager()
+{
+	for (std::vector<ListeningSocket>::iterator it = sockets_.begin(); it != sockets_.end(); ++it)
+	{
+		pollManager_.addListeningSocket(&*it);
+	}
+}
+
+void WebServer::run()
+{
+	Logger::log(LOG_INFO, "WebServer is running...");
+	pollManager_.run();
+}
