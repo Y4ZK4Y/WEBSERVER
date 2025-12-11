@@ -101,9 +101,15 @@ void Client::buildRequest()
 {
 	char buf[1024];
 	int res = recv(_fd, buf, sizeof(buf), 0);
-	if (res <= 0)
+	if (res == 0)
 	{
+		Logger::log(LOG_INFO, "Client disconnected fd: " + std::to_string(_fd));
 		throw std::runtime_error("Client disconnected");
+	}
+	else if (res < 0)
+	{
+		Logger::log(LOG_ERROR, "Error reading from client fd: " + std::to_string(_fd));
+		throw std::runtime_error("Error reading from client");
 	}
 
 	_request.append(buf, res);
@@ -196,9 +202,15 @@ void Client::sendResponse()
 	if (_responseBuilt)
 	{
 		size_t sent = send(_fd, _response.c_str() + _bytesSent, _response.size() - _bytesSent, 0);
-		if (sent <= 0)
+		if (sent == 0)
 		{
+			Logger::log(LOG_INFO, "Client disconnected fd: " + std::to_string(_fd));
 			throw std::runtime_error("Client disconnected");
+		}
+		else if (sent < 0)
+		{
+			Logger::log(LOG_ERROR, "Error sending to client fd: " + std::to_string(_fd));
+			throw std::runtime_error("Error sending to client");
 		}
 
 		_bytesSent += sent;
