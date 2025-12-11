@@ -35,6 +35,7 @@ int main(int argc, char* argv[])
 		}
 		catch (const std::exception& e) {
 			Logger::log(LOG_ERROR, std::string("Error: ") + e.what());
+			return 1;
 		}
 	}
     return 0;
