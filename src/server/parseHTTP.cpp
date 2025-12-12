@@ -92,7 +92,8 @@ std::string ParseHTTP::urlConverter(const std::string &str)
 			}
 			catch (const std::exception& e)
 			{
-				send_error_response(404, "Not Found");
+				send_error_response(400, "Bad Request");
+				return decoded;
 			}
 		}
 		else
@@ -212,7 +213,7 @@ void ParseHTTP::parse_http_request()
 	
 	if (!route)
 	{
-		send_error_response(404, "Route Not Found");
+		send_error_response(404, "Not Found");
 		return ;
 	}
 	
@@ -255,7 +256,7 @@ void ParseHTTP::parse_http_request()
 	}
 	else
 	{
-		send_error_response(405, "Method Not Supported");
+		send_error_response(405, "Method Not Allowed");
 		return ;
 	}
 }
@@ -354,7 +355,7 @@ void ParseHTTP::handlePOST(const std::string &http_request, size_t status_line_e
 			}
 			catch (const std::exception& e)
 			{
-				send_error_response(404, "Not Found");
+				send_error_response(400, "Bad Request");
 			}
 		}
 		else if (copy_header.find("Content-Type: multipart/form-data; boundary=") == 0)
