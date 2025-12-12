@@ -255,7 +255,7 @@ void ParseHTTP::parse_http_request()
 	}
 	else
 	{
-		send_error_response(405, "Method Not Allowed");
+		send_error_response(501, "Not Implemented");
 		return ;
 	}
 }
