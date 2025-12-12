@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string_view>
 #include <vector>
+#include <sys/stat.h>
 
 Block ConfigParser::parseBlock(Tokenizer& tokenizer, const std::string& name, std::vector<std::string> args) {
     Block block;
@@ -70,10 +71,17 @@ Block ConfigParser::parseBlock(Tokenizer& tokenizer, const std::string& name, st
 
 
 Config ConfigParser::parse(const std::string& path) {
+
+    struct stat path_stat;
+    if (stat(path.c_str(), &path_stat) == 0) {
+        if (S_ISDIR(path_stat.st_mode))
+            throw ConfigParseError("config path is a directory: " + path);
+    }
     std::ifstream file(path);
     if (!file.is_open()) {
         throw ConfigParseError("Could not open config file: " + path);
     }
+
     Tokenizer tokenizer(file);
     Config config;
 

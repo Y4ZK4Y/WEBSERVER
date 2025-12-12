@@ -37,6 +37,10 @@ int main(int argc, char* argv[])
 			Logger::log(LOG_ERROR, std::string("Error: ") + e.what());
 			return 1;
 		}
+		catch (...) {
+			Logger::log(LOG_ERROR, std::string("Unknown Error"));
+			return 1;
+		}
 	}
     return 0;
 }

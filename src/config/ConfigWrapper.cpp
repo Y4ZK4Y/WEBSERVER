@@ -10,6 +10,7 @@ void runConfigLogic(const std::string& configPath) {
     Logger::log(LOG_INFO, "Parsing config: " + configPath);
 
     Config config = ConfigParser::parse(configPath);
+
     ConfigValidator::validate(config);
     std::vector<ServerConfig> servers = ConfigMapper::map(config);
 	WebServer server(servers);
