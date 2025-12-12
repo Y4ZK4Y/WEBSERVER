@@ -240,6 +240,41 @@ void PollManager::removeCgiFds(CGI& cgi)
 	}
 }
 
+void PollManager::handlePollin(int fd)
+{
+	if (_sockets.count(fd))
+	{
+		acceptConnection(fd);
+	}
+	else if (_clients.count(fd))
+	{
+		readClient(fd);
+	}
+}
+
+void PollManager::handlePollout(int fd)
+{
+	if (_clients.count(fd))
+	{
+		Client& client = *_clients[fd];
+		client.setLastActivityTime();
+		if (fd == client.getFd())
+		{
+			client.sendResponse();
+			if (client.getResponseComplete())
+			{
+				unregisterForWrite(fd);
+				client.reset();
+				removeClient(fd);
+			}
+		}
+		else
+		{
+			client.cgiWrite();
+		}
+	}
+}
+
 void PollManager::run()
 {
 	while (true)
@@ -249,53 +284,20 @@ void PollManager::run()
 		{
 			for (size_t i = 0; i < _pollfds.size(); ++i)
 			{
-				if (_pollfds[i].revents & POLLIN)
+				try
 				{
-					if (_sockets.count(_pollfds[i].fd))
+					if (_pollfds[i].revents & POLLIN)
 					{
-						acceptConnection(_pollfds[i].fd);
+						handlePollin(_pollfds[i].fd);
 					}
-					else if (_clients.count(_pollfds[i].fd))
+					if (_pollfds[i].revents & POLLOUT)
 					{
-						try
-						{
-							readClient(_pollfds[i].fd);
-						}
-						catch(const std::exception& e)
-						{
-							removeClient(_pollfds[i].fd);
-						}
+						handlePollout(_pollfds[i].fd);
 					}
 				}
-				if (_pollfds[i].revents & POLLOUT)
+				catch(const std::exception& e)
 				{
-					if (_clients.count(_pollfds[i].fd))
-					{
-
-						Client& client = *_clients[_pollfds[i].fd];
-						client.setLastActivityTime();
-						if (_pollfds[i].fd == client.getFd())
-						{
-							try
-							{								
-								client.sendResponse();
-							}
-							catch(const std::exception& e)
-							{
-								removeClient(_pollfds[i].fd);
-							}							
-							if (client.getResponseComplete())
-							{
-								unregisterForWrite(_pollfds[i].fd);
-								client.reset();
-								removeClient(_pollfds[i].fd);
-							}
-						}
-						else
-						{
-							client.cgiWrite();
-						}						
-					}
+					removeClient(_pollfds[i].fd);
 				}
 			}
 		}
