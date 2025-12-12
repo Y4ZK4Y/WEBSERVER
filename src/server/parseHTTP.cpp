@@ -93,6 +93,7 @@ std::string ParseHTTP::urlConverter(const std::string &str)
 			catch (const std::exception& e)
 			{
 				send_error_response(400, "Bad Request");
+				return decoded;
 			}
 		}
 		else
