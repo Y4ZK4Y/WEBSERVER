@@ -17,6 +17,8 @@ private:
 
 	void handleTimeout();
 	void removeCgiFds(CGI& cgi);
+	void handlePollin(int fd);
+	void handlePollout(int fd);
 
 public:
 	void addListeningSocket(ListeningSocket* socket);
