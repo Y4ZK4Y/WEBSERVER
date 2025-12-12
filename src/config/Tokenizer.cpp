@@ -1,13 +1,16 @@
 #include "Config/Tokenizer.hpp"
 #include <cctype>
 #include <sstream>
+#include <iostream>
 
 Tokenizer::Tokenizer(std::istream& input): input_(input), currentChar_(' ') {
     advance();
 }
 
 void Tokenizer::advance() {
+
     currentChar_ = input_.get();
+
     if (input_.eof())
         currentChar_ = '\0'; // NULL char on eof
 }
