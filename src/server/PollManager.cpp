@@ -6,6 +6,7 @@
 #include <bitset>
 #include <signal.h>
 #include "Config/Logger.hpp"
+#include <sys/wait.h>
 
 void PollManager::addListeningSocket(ListeningSocket* socket)
 {
@@ -275,6 +276,39 @@ void PollManager::handlePollout(int fd)
 	}
 }
 
+void PollManager::handle_cgi_exit(pid_t pid)
+{
+	for (auto it = _clients.begin(); it != _clients.end(); ++it)
+	{
+		Client& client = *(it->second);
+		if (client.getCgiProcess().isCgiActive() == false)
+			continue;
+		if (client.getCgiProcess().getPid() == pid)
+		{
+			client.getCgiProcess().timedOut();
+			removeCgiFds(client.getCgiProcess());
+			ParseHTTP parser;
+			parser.setConfig(client.getConfig());
+			parser.send_error_response(500, "Internal Server Error");
+			client.setResponse(parser.getResponse());
+			registerForWrite(client.getFd());
+		}
+	}
+}
+
+void PollManager::reap_children()
+{
+	pid_t pid;
+	int status;
+	while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
+	{
+		if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+		{
+			handle_cgi_exit(pid);
+		}		
+	}
+}
+
 void PollManager::run()
 {
 	while (true)
@@ -294,6 +328,10 @@ void PollManager::run()
 					{
 						handlePollout(_pollfds[i].fd);
 					}
+					if (_pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL))
+					{
+						removeClient(_pollfds[i].fd);
+					}
 				}
 				catch(const std::exception& e)
 				{
@@ -305,6 +343,7 @@ void PollManager::run()
 		{
 			handleTimeout();
 		}
+		reap_children();
 		handleAddQueue();
 		handleRemoveQueue();
 	}

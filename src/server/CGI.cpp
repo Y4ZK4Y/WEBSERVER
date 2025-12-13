@@ -268,7 +268,7 @@ bool CGI::isCgiActive() const
 
 void CGI::timedOut()
 {
-	Logger::log(LOG_INFO, "CGI: Process with PID " + std::to_string(_pid) + " timed out. Terminating.");
+	Logger::log(LOG_INFO, "CGI: Process with PID " + std::to_string(_pid) + " terminated.");
 	_cgiActive = false;
 	if (_pipeIn[1] != -1)
 	{
