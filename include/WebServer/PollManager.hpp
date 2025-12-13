@@ -19,6 +19,8 @@ private:
 	void removeCgiFds(CGI& cgi);
 	void handlePollin(int fd);
 	void handlePollout(int fd);
+	void handle_cgi_exit(pid_t pid);
+	void reap_children();
 
 public:
 	void addListeningSocket(ListeningSocket* socket);
