@@ -6,6 +6,7 @@
 #include <bitset>
 #include <signal.h>
 #include "Config/Logger.hpp"
+#include <sys/wait.h>
 
 void PollManager::addListeningSocket(ListeningSocket* socket)
 {
@@ -193,18 +194,19 @@ void PollManager::printPollFDs()
 
 void PollManager::handleTimeout()
 {
+	std::vector<int> timedOutFds;
 	for (auto it = _clients.begin(); it != _clients.end(); ++it)
 	{
 		Client& client = *(it->second);
 		std::time_t currentTime = std::time(nullptr);
 		double elapsed;
 		if (client.getCgiProcess().isCgiActive() == false)
-		{	
+		{
 			elapsed = std::difftime(currentTime, client.getLastActivityTime());
 			if (elapsed > 10)
 			{
 				client.reset();
-				removeClient(client.getFd());
+				timedOutFds.push_back(client.getFd());
 			}
 			continue;
 		}
@@ -219,6 +221,10 @@ void PollManager::handleTimeout()
 			client.setResponse(parser.getResponse());
 			registerForWrite(client.getFd());
 		}
+	}
+	for (int fd : timedOutFds)
+	{
+		removeClient(fd);
 	}
 }
 
@@ -240,6 +246,74 @@ void PollManager::removeCgiFds(CGI& cgi)
 	}
 }
 
+void PollManager::handlePollin(int fd)
+{
+	if (_sockets.count(fd))
+	{
+		acceptConnection(fd);
+	}
+	else if (_clients.count(fd))
+	{
+		readClient(fd);
+	}
+}
+
+void PollManager::handlePollout(int fd)
+{
+	if (_clients.count(fd))
+	{
+		Client& client = *_clients[fd];
+		client.setLastActivityTime();
+		if (fd == client.getFd())
+		{
+			client.sendResponse();
+			if (client.getResponseComplete())
+			{
+				unregisterForWrite(fd);
+				client.reset();
+				removeClient(fd);
+			}
+		}
+		else
+		{
+			client.cgiWrite();
+		}
+	}
+}
+
+void PollManager::handle_cgi_exit(pid_t pid)
+{
+	for (auto it = _clients.begin(); it != _clients.end(); ++it)
+	{
+		Client& client = *(it->second);
+		if (client.getCgiProcess().isCgiActive() == false)
+			continue;
+		if (client.getCgiProcess().getPid() == pid)
+		{
+			client.getCgiProcess().timedOut();
+			removeCgiFds(client.getCgiProcess());
+			ParseHTTP parser;
+			parser.setConfig(client.getConfig());
+			parser.send_error_response(500, "Internal Server Error");
+			client.setResponse(parser.getResponse());
+			registerForWrite(client.getFd());
+		}
+	}
+}
+
+void PollManager::reap_children()
+{
+	pid_t pid;
+	int status;
+	while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
+	{
+		if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+		{
+			handle_cgi_exit(pid);
+		}		
+	}
+}
+
 void PollManager::run()
 {
 	while (true)
@@ -249,53 +323,24 @@ void PollManager::run()
 		{
 			for (size_t i = 0; i < _pollfds.size(); ++i)
 			{
-				if (_pollfds[i].revents & POLLIN)
+				try
 				{
-					if (_sockets.count(_pollfds[i].fd))
+					if (_pollfds[i].revents & POLLIN)
 					{
-						acceptConnection(_pollfds[i].fd);
+						handlePollin(_pollfds[i].fd);
 					}
-					else if (_clients.count(_pollfds[i].fd))
+					if (_pollfds[i].revents & POLLOUT)
 					{
-						try
-						{
-							readClient(_pollfds[i].fd);
-						}
-						catch(const std::exception& e)
-						{
-							removeClient(_pollfds[i].fd);
-						}
+						handlePollout(_pollfds[i].fd);
+					}
+					if (_pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL))
+					{
+						removeClient(_pollfds[i].fd);
 					}
 				}
-				if (_pollfds[i].revents & POLLOUT)
+				catch(const std::exception& e)
 				{
-					if (_clients.count(_pollfds[i].fd))
-					{
-
-						Client& client = *_clients[_pollfds[i].fd];
-						client.setLastActivityTime();
-						if (_pollfds[i].fd == client.getFd())
-						{
-							try
-							{								
-								client.sendResponse();
-							}
-							catch(const std::exception& e)
-							{
-								removeClient(_pollfds[i].fd);
-							}							
-							if (client.getResponseComplete())
-							{
-								unregisterForWrite(_pollfds[i].fd);
-								client.reset();
-								removeClient(_pollfds[i].fd);
-							}
-						}
-						else
-						{
-							client.cgiWrite();
-						}						
-					}
+					removeClient(_pollfds[i].fd);
 				}
 			}
 		}
@@ -303,6 +348,7 @@ void PollManager::run()
 		{
 			handleTimeout();
 		}
+		reap_children();
 		handleAddQueue();
 		handleRemoveQueue();
 	}

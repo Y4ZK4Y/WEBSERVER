@@ -93,6 +93,7 @@ std::string ParseHTTP::urlConverter(const std::string &str)
 			catch (const std::exception& e)
 			{
 				send_error_response(400, "Bad Request");
+				return decoded;
 			}
 		}
 		else
@@ -255,7 +256,7 @@ void ParseHTTP::parse_http_request()
 	}
 	else
 	{
-		send_error_response(405, "Method Not Allowed");
+		send_error_response(501, "Not Implemented");
 		return ;
 	}
 }

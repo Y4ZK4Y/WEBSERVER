@@ -20,6 +20,7 @@ void WebServer::initSockets()
 		{
 			if (sock->getPort() == port)
 			{
+				throw(std::runtime_error("Duplicate port detected"));
 				existing = &*sock;
 				break;
 			}

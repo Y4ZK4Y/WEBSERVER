@@ -172,6 +172,17 @@ void CGI::writePipe()
 		_removeFDs.push(_pipeIn[1]);
 		_pipeIn[1] = -1;
 	}
+	else if (written == 0)
+	{
+		close(_pipeIn[1]);
+		_removeFDs.push(_pipeIn[1]);
+		_pipeIn[1] = -1;
+	}
+	else if (written < 0)
+	{
+		Logger::log(LOG_ERROR, "Error writing to CGI pipe");
+		throw std::runtime_error("Error writing to CGI pipe");
+	}
 }
 
 void CGI::readPipe()
@@ -199,6 +210,11 @@ void CGI::readPipe()
 		close(_pipeOut[0]);
 		_removeFDs.push(_pipeOut[0]);
 		_pipeOut[0] = -1;
+	}
+	else
+	{
+		Logger::log(LOG_ERROR, "Error reading from CGI pipe");
+		throw std::runtime_error("Error reading from CGI pipe");
 	}
 }
 
@@ -252,7 +268,7 @@ bool CGI::isCgiActive() const
 
 void CGI::timedOut()
 {
-	Logger::log(LOG_INFO, "CGI: Process with PID " + std::to_string(_pid) + " timed out. Terminating.");
+	Logger::log(LOG_INFO, "CGI: Process with PID " + std::to_string(_pid) + " terminated.");
 	_cgiActive = false;
 	if (_pipeIn[1] != -1)
 	{
