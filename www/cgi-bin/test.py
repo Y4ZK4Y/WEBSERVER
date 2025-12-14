@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import os
-import time
-time.sleep(15)
 
 print("Content-Type: text/html\r")
 print("\r")

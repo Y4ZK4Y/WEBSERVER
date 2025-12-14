@@ -194,18 +194,19 @@ void PollManager::printPollFDs()
 
 void PollManager::handleTimeout()
 {
+	std::vector<int> timedOutFds;
 	for (auto it = _clients.begin(); it != _clients.end(); ++it)
 	{
 		Client& client = *(it->second);
 		std::time_t currentTime = std::time(nullptr);
 		double elapsed;
 		if (client.getCgiProcess().isCgiActive() == false)
-		{	
+		{
 			elapsed = std::difftime(currentTime, client.getLastActivityTime());
 			if (elapsed > 10)
 			{
 				client.reset();
-				removeClient(client.getFd());
+				timedOutFds.push_back(client.getFd());
 			}
 			continue;
 		}
@@ -220,6 +221,10 @@ void PollManager::handleTimeout()
 			client.setResponse(parser.getResponse());
 			registerForWrite(client.getFd());
 		}
+	}
+	for (int fd : timedOutFds)
+	{
+		removeClient(fd);
 	}
 }
 
