@@ -459,7 +459,7 @@ std::string ParseHTTP::parseBlock(const std::string &body, const std::string &bo
     std::ofstream out_file(full_path, std::ios::binary);
     if (!out_file)
         return "";
-
+	// check write's return value?
     out_file.write(file_content.c_str(), file_content.size());
     out_file.close();
 
