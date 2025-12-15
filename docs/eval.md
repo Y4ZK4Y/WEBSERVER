@@ -31,4 +31,31 @@ curl -i http://localhost:8080/invalido
 ## max body limit
 curl -i -X POST -H "Content-Type: text/plain" --data "maxing body limiiiiiiiiiiittttt" http://localhost:8080/upload
 
-## 
+## Set up a default file to serve when requesting a directory.
+urls ending in / or pointing to a folder - make sure server serves the default index
+this line in the config file: index index.html index.htm;
+how it does:
+resolves /some_directory/ to a filesystem directory - looks for files listed in index - 
+serves the first one that exists - returns 200 or 404
+curl -i http://localhost:8080/dir
+
+## Set up a list of accepted methods for a specific route (e.g., try DELETE something with and without permission)
+for a location that has POST
+curl -i -X POST -H "Content_Type: text/plain" --data "abc" http://localhost:8080/upload/file.txt
+
+for a location that does not have DELETE
+curl -i -X DELETE http://localhost:8080/upload/file.txt
+
+
+## basic checks:
+delete something:
+curl -i -X DELETE http://localhost:8080/uploads/readme.txt
+
+retrieve something:
+curl -i http://localhost:8080/uploads/readme.txt 
+
+unknown request:
+printf "BREW / HTTP\1.1\r\nHost: localhost\r\n\r\n" | nc 127.0.0.1 8080
+
+## test memory usage
+watch -n 1 "ps aux | grep webserv"
